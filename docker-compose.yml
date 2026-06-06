@@ -1,0 +1,209 @@
+# MediChain Docker Compose — Production Deployment
+# Includes: PostgreSQL, Redis, Kafka, App, Nginx, Prometheus, Grafana, pgAdmin
+
+version: "3.8"
+
+services:
+
+  # --------------------------------------------------------------------------
+  # PostgreSQL — Primary Database
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: medichain-postgres
+    environment:
+      POSTGRES_DB: medichain
+      POSTGRES_USER: medichain
+      POSTGRES_PASSWORD: ${MEDICHAIN_DB_PASSWORD:-changeme_in_production}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medichain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medichain-net
+
+  # --------------------------------------------------------------------------
+  # Redis — Cache & Session Store
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: medichain-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - medichain-net
+
+  # --------------------------------------------------------------------------
+  # ZooKeeper — Kafka Coordination
+  # --------------------------------------------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: medichain-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - medichain-net
+
+  # --------------------------------------------------------------------------
+  # Kafka — Event Streaming
+  # --------------------------------------------------------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: medichain-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - medichain-net
+
+  # --------------------------------------------------------------------------
+  # MediChain Spring Boot Application
+  # --------------------------------------------------------------------------
+  app:
+    build: .
+    container_name: medichain-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/medichain
+      SPRING_DATASOURCE_USERNAME: medichain
+      SPRING_DATASOURCE_PASSWORD: ${MEDICHAIN_DB_PASSWORD:-changeme_in_production}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      MEDICHAIN_AI_CLAUDE_API_KEY: ${MEDICHAIN_AI_CLAUDE_API_KEY:-}
+      MEDICHAIN_AI_CLAUDE_MODEL: claude-sonnet-4-20250514
+    volumes:
+      - medichain_docs:/app/docs
+    networks:
+      - medichain-net
+
+  # --------------------------------------------------------------------------
+  # Nginx — Reverse Proxy with SSL termination
+  # --------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.26-alpine
+    container_name: medichain-nginx
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - medichain-net
+
+  # --------------------------------------------------------------------------
+  # Prometheus — Metrics Collection & Alerting
+  # --------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: medichain-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    depends_on:
+      - app
+    networks:
+      - medichain-net
+
+  # --------------------------------------------------------------------------
+  # Grafana — Dashboards & Visualization
+  # --------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: medichain-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: ""
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - medichain-net
+
+  # --------------------------------------------------------------------------
+  # pgAdmin — PostgreSQL Administration (optional, for development)
+  # --------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: medichain-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@medichain.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - medichain-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  medichain_docs:
+  prometheus_data:
+  grafana_data:
+  pgadmin_data:
+
+networks:
+  medichain-net:
+    driver: bridge

@@ -1,0 +1,53 @@
+# MediChain Prometheus Configuration
+# Compatible with Prometheus 2.x
+
+global:
+  scrape_interval: 15s      # How frequently to scrape targets
+  evaluation_interval: 15s  # How frequently to evaluate rules
+  scrape_timeout: 10s
+
+# Rule files to load for alerting
+rule_files:
+  - alert.rules.yml
+
+# Alertmanager configuration (placeholder — point to your alertmanager instance)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Storage retention
+storage:
+  tsdb:
+    retention.time: 15d
+
+# Scrape configurations
+scrape_configs:
+  # MediChain Spring Boot application exposing Micrometer metrics via Actuator
+  - job_name: 'medichain-app'
+    metrics_path: '/actuator/prometheus'
+    scheme: http
+    static_configs:
+      - targets:
+          - 'host.docker.internal:8080'
+        labels:
+          application: 'medichain'
+          env: 'production'
+    # Relabel to attach instance hostname
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'medichain-app'
+
+  # PostgreSQL exporter (if deployed as a sidecar or separate container)
+  - job_name: 'postgres-exporter'
+    metrics_path: '/metrics'
+    scheme: http
+    static_configs:
+      - targets:
+          - 'postgres-exporter:9187'
+        labels:
+          application: 'medichain-postgres'
+    # Allow job to fail gracefully if exporter is not deployed
+    scrape_timeout: 5s

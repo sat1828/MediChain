@@ -1,0 +1,190 @@
+server:
+  port: 8080
+  tomcat:
+    max-connections: 200
+    threads:
+      max: 50
+      min-spare: 10
+    connection-timeout: 30s
+
+spring:
+  application:
+    name: medichain
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/medichain}
+    username: ${SPRING_DATASOURCE_USERNAME:medichain}
+    password: ${SPRING_DATASOURCE_PASSWORD:changeme_in_production}
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+
+  flyway:
+    enabled: true
+    schemas: medichain
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 25
+          fetch_size: 100
+        order_inserts: true
+        order_updates: true
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+        format_sql: false
+        default_schema: medichain
+    open-in-view: false
+    show-sql: false
+
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        acks: all
+        retries: 5
+        compression.type: snappy
+    consumer:
+      group-id: medichain-consumer
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.medichain.*
+        auto.offset.reset: earliest
+        enable.auto.commit: false
+        max.poll.records: 100
+    listener:
+      ack-mode: manual-immediate
+      concurrency: 3
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+    date-format: yyyy-MM-dd'T'HH:mm:ssXXX
+    time-zone: Asia/Kolkata
+
+  mail:
+    host: ${MEDICHAIN_MAIL_HOST:}
+    port: 587
+    username: ${MEDICHAIN_MAIL_USERNAME:}
+    password: ${MEDICHAIN_MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  thymeleaf:
+    cache: true
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+
+medichain:
+  security:
+    jwt:
+      secret: ${MEDICHAIN_JWT_SECRET:change_this_in_production_with_a_512bit_key_minimum}
+      access-token-expiration: 28800000
+      refresh-token-expiration: 604800000
+  inventory:
+    fefo:
+      enabled: true
+    reorder-days: 30
+    critical-expiry-window-days: 60
+    warning-expiry-window-days: 90
+    abc-ved:
+      auto-classify: true
+  alerts:
+    stock-threshold-days: 30
+    expiry-warning-days: 60
+    expiry-critical-days: 30
+    ngo-auto-draft-enabled: true
+  ai:
+    forecasting:
+      enabled: true
+      min-transaction-days: 90
+      min-forecast-interval-hours: 24
+      api-timeout-seconds: 60
+      max-retries: 3
+    claude:
+      api-key: ${MEDICHAIN_AI_CLAUDE_API_KEY:}
+      api-url: https://api.anthropic.com/v1/messages
+      model: ${MEDICHAIN_AI_CLAUDE_MODEL:claude-sonnet-4-20250514}
+      max-tokens: 2048
+  batch:
+    expiry-audit:
+      cron: "30 0 * * * *"
+      chunk-size: 100
+    forecast:
+      cron: "0 2 * * * *"
+      chunk-size: 50
+  dashboard:
+    cache-ttl-seconds: 300
+
+logging:
+  level:
+    com.medichain: INFO
+    org.springframework.security: WARN
+    org.springframework.batch: INFO
+    org.apache.kafka: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/medichain.log
+    max-size: 100MB
+    max-history: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method

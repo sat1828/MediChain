@@ -1,0 +1,116 @@
+<html th:replace="~{fragments/layout :: layout(title=~{::title}, content=~{::#main-content})}">
+<head>
+    <title>Inventory - MediChain</title>
+</head>
+<body>
+    <div id="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Ward Inventory</h1>
+            <button class="btn btn-primary" data-toggle="modal" data-target="receipt-modal">Receive Stock</button>
+        </div>
+
+        <div x-data="{ wardId: '', search: '' }" class="filter-bar">
+            <select x-model="wardId"
+                    @change="if(wardId) htmx.ajax('GET', '/api/v1/wards/'+wardId+'/inventory', {target:'#inventory-table-body', swap:'innerHTML'}); document.getElementById('inventory-search').dataset.wardId=wardId"
+                    style="max-width:280px">
+                <option value="">Select Ward...</option>
+                <option th:each="ward : ${wards}" th:value="${ward.id}" th:text="${ward.name}">Ward</option>
+            </select>
+            <input type="text" id="inventory-search"
+                   class="form-input" placeholder="Search drug..."
+                   x-model="search"
+                   @keyup.debounce.500ms="if(wardId) htmx.ajax('GET', '/api/v1/wards/'+wardId+'/inventory?search='+encodeURIComponent(search), {target:'#inventory-table-body', swap:'innerHTML'})">
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Inventory Items</span>
+            </div>
+            <div class="card-body" style="padding:0">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Generic Name</th>
+                                <th>Strength</th>
+                                <th>Batch#</th>
+                                <th>Shelf</th>
+                                <th>Qty</th>
+                                <th>Expiry</th>
+                                <th>Days to Expiry</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body">
+                            <tr>
+                                <td colspan="7"><div class="empty-state"><p>Select a ward to view inventory</p></div></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="receipt-modal" class="modal-overlay">
+            <div class="modal">
+                <div class="modal-header">
+                    <span class="modal-title">Receive Stock (FIFO Batch Receipt)</span>
+                    <button class="modal-close" data-dismiss="modal">&times;</button>
+                </div>
+                <form hx-post="/api/v1/transactions/receipt" hx-target="#receipt-modal" hx-swap="outerHTML" onsubmit="return MediChain.validateForm(this)">
+                    <div class="modal-body">
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label class="form-label" for="receipt-ward">Ward</label>
+                                <select class="form-select" id="receipt-ward" name="wardId" required>
+                                    <option value="">Select Ward</option>
+                                    <option th:each="ward : ${wards}" th:value="${ward.id}" th:text="${ward.name}">Ward</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="receipt-sku">Drug SKU ID</label>
+                                <input type="text" class="form-input" id="receipt-sku" name="drugSkuId" placeholder="SKU UUID" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="receipt-batch">Batch Number</label>
+                                <input type="text" class="form-input" id="receipt-batch" name="batchNumber" placeholder="e.g. B24001" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="receipt-shelf">Shelf ID</label>
+                                <input type="text" class="form-input" id="receipt-shelf" name="shelfId" placeholder="Shelf UUID" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="receipt-qty">Quantity</label>
+                                <input type="number" class="form-input" id="receipt-qty" name="quantity" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="receipt-unit-cost">Unit Cost</label>
+                                <input type="number" step="0.01" class="form-input" id="receipt-unit-cost" name="unitCost" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="receipt-mrp">MRP</label>
+                                <input type="number" step="0.01" class="form-input" id="receipt-mrp" name="mrp" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="receipt-mfg-date">Manufacture Date</label>
+                                <input type="date" class="form-input" id="receipt-mfg-date" name="manufactureDate">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="receipt-exp-date">Expiry Date</label>
+                                <input type="date" class="form-input" id="receipt-exp-date" name="expiryDate" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="receipt-notes">Notes</label>
+                            <textarea class="form-textarea" id="receipt-notes" name="notes" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Receive Stock</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

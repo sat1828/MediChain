@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title th:remove="all">Stockout Alert</title>
+  <style type="text/css">
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f6f9;
+      font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #2c3e50;
+    }
+    .email-wrapper {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    .email-header {
+      background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+      padding: 28px 24px;
+      text-align: center;
+    }
+    .email-header h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .email-header .badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 14px;
+      background-color: #e74c3c;
+      color: #ffffff;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .email-body {
+      padding: 32px 24px;
+    }
+    .email-body p {
+      margin: 0 0 16px 0;
+    }
+    .email-body .summary {
+      background-color: #fdf2f2;
+      border-left: 4px solid #e74c3c;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    table.alert-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 13px;
+    }
+    table.alert-table thead th {
+      background-color: #1a5276;
+      color: #ffffff;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    table.alert-table tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    table.alert-table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
+    table.alert-table .severity-critical {
+      color: #e74c3c;
+      font-weight: 700;
+    }
+    table.alert-table .severity-warning {
+      color: #f39c12;
+      font-weight: 600;
+    }
+    .cta-button {
+      display: inline-block;
+      margin: 16px 0 8px;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .cta-button:hover {
+      background: linear-gradient(135deg, #154360 0%, #1a5276 100%);
+    }
+    .email-footer {
+      padding: 20px 24px;
+      background-color: #f8f9fa;
+      font-size: 12px;
+      color: #7f8c8d;
+      text-align: center;
+      border-top: 1px solid #e9ecef;
+    }
+    .email-footer p {
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <div class="email-header">
+      <h1 th:text="${subject} ?: 'MediChain — Stockout Alert'">MediChain — Stockout Alert</h1>
+      <span class="badge">Action Required</span>
+    </div>
+    <div class="email-body">
+      <p>Dear Pharmacy Team,</p>
+      <p>
+        The following drug items have been identified with critically low stock levels and
+        require immediate attention:
+      </p>
+
+      <div class="summary">
+        <strong>Threshold:</strong> Stockout risk triggered when days remaining &lt; 15 days.
+      </div>
+
+      <table class="alert-table">
+        <thead>
+          <tr>
+            <th>Drug Name</th>
+            <th>Ward</th>
+            <th>Days Remaining</th>
+            <th>Severity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows populated by Thymeleaf -->
+          <tr th:each="item : ${items}">
+            <td th:text="${item.drugName}">Paracetamol</td>
+            <td th:text="${item.ward}">Ward A</td>
+            <td th:text="${item.daysRemaining}">5</td>
+            <td>
+              <span th:text="${item.severity}" th:classappend="${item.severity == 'CRITICAL' ? 'severity-critical' : 'severity-warning'}"
+                    th:class="severity-warning">CRITICAL</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        <a class="cta-button" th:href="${dashboardUrl} ?: 'https://medichain.local/dashboard'"
+           href="https://medichain.local/dashboard">
+           View MediChain Dashboard
+        </a>
+      </p>
+    </div>
+    <div class="email-footer">
+      <p><strong>MediChain — Hospital Pharmacy Inventory System</strong></p>
+      <p>This is an automated alert. Please do not reply to this email.</p>
+      <p th:if="${#dates != null}" th:text="'Sent: ' + ${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')}">Sent: 2026-06-05 15:00:00</p>
+    </div>
+  </div>
+</body>
+</html>

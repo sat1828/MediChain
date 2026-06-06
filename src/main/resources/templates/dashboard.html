@@ -1,0 +1,210 @@
+<html th:replace="~{fragments/layout :: layout(title=~{::title}, content=~{::#main-content})}">
+<head>
+    <title>Dashboard - MediChain</title>
+</head>
+<body>
+    <div id="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Pharmacy Dashboard</h1>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-card stat-primary">
+                <span class="stat-label">Total SKUs</span>
+                <span class="stat-value" th:text="${totalSkuCount}">0</span>
+                <span class="stat-subtitle">Active drug formulations</span>
+            </div>
+            <div class="stat-card stat-danger">
+                <span class="stat-label">Active Alerts</span>
+                <span class="stat-value" th:text="${dashboard.activeAlerts().size()}">0</span>
+                <span class="stat-subtitle" th:text="|${dashboard.alertCountsBySeverity().get('CRITICAL') != null ? dashboard.alertCountsBySeverity().get('CRITICAL') : 0} critical|">0 critical</span>
+            </div>
+            <div class="stat-card stat-warning">
+                <span class="stat-label">Pending Orders</span>
+                <span class="stat-value" th:text="${dashboard.procurementPipeline().pendingApprovalCount()}">0</span>
+                <span class="stat-subtitle" th:text="|${dashboard.procurementPipeline().draftCount()} drafts|">0 drafts</span>
+            </div>
+            <div class="stat-card stat-success">
+                <span class="stat-label">Wards</span>
+                <span class="stat-value" th:text="${wardsCount}">0</span>
+                <span class="stat-subtitle">Active hospital wards</span>
+            </div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:24px">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Expiry Timeline</span>
+                </div>
+                <div class="card-body" style="padding:0">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Batch</th>
+                                    <th>Drug</th>
+                                    <th>Ward</th>
+                                    <th>Expiry Date</th>
+                                    <th>Days Left</th>
+                                    <th>Severity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="item : ${dashboard.expiryTimeline()}" th:classappend="|row-${#strings.toLowerCase(item.severity())}|">
+                                    <td th:text="${item.batchNumber()}">B001</td>
+                                    <td th:text="${item.drugName()}">Drug</td>
+                                    <td th:text="${item.wardName()}">Ward</td>
+                                    <td th:text="${item.expiryDate()}">2025-01-01</td>
+                                    <td th:text="${item.daysToExpiry()}">30</td>
+                                    <td><span class="badge" th:classappend="|badge-${#strings.toLowerCase(item.severity())}|" th:text="${item.severity()}">WARNING</span></td>
+                                </tr>
+                                <tr th:unless="${!dashboard.expiryTimeline().isEmpty()}">
+                                    <td colspan="6"><div class="empty-state"><p>No expiring batches</p></div></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Top Stockout Risks</span>
+                </div>
+                <div class="card-body" style="padding:0">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Drug</th>
+                                    <th>Ward</th>
+                                    <th>Predicted Stockout</th>
+                                    <th>Confidence</th>
+                                    <th>VED</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="risk : ${dashboard.topStockoutRisks()}">
+                                    <td th:text="${risk.drugName()}">Drug</td>
+                                    <td th:text="${risk.wardName()}">Ward</td>
+                                    <td th:text="${risk.predictedStockoutDate()}">2025-01-01</td>
+                                    <td>
+                                        <div class="progress-bar" style="width:80px;display:inline-block;vertical-align:middle">
+                                            <div class="progress-fill"
+                                                 th:classappend="${risk.confidenceScore() >= 0.7 ? 'progress-fill-critical' : (risk.confidenceScore() >= 0.4 ? 'progress-fill-warning' : 'progress-fill-success')}"
+                                                 th:style="|width: ${risk.confidenceScore() * 100}%|"></div>
+                                        </div>
+                                        <span class="text-sm text-muted" style="margin-left:6px" th:text="|${#numbers.formatDecimal(risk.confidenceScore() * 100, 0, 0)}%|">70%</span>
+                                    </td>
+                                    <td><span class="badge" th:classappend="|badge-${#strings.toLowerCase(risk.vedClassification())}|" th:text="${risk.vedClassification()}">VITAL</span></td>
+                                </tr>
+                                <tr th:unless="${!dashboard.topStockoutRisks().isEmpty()}">
+                                    <td colspan="5"><div class="empty-state"><p>No stockout risks</p></div></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:24px">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Procurement Pipeline</span>
+                </div>
+                <div class="card-body">
+                    <th:block th:with="pipeline=${dashboard.procurementPipeline()}">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-muted">Draft</span>
+                            <span class="text-sm font-semibold" th:text="${pipeline.draftCount()}">0</span>
+                        </div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-muted">Pending Approval</span>
+                            <span class="text-sm font-semibold" th:text="${pipeline.pendingApprovalCount()}">0</span>
+                        </div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-muted">Approved</span>
+                            <span class="text-sm font-semibold" th:text="${pipeline.approvedCount()}">0</span>
+                        </div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-muted">Dispatched</span>
+                            <span class="text-sm font-semibold" th:text="${pipeline.dispatchedCount()}">0</span>
+                        </div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm text-muted">Received</span>
+                            <span class="text-sm font-semibold" th:text="${pipeline.receivedCount()}">0</span>
+                        </div>
+                        <th:block th:with="total=${pipeline.draftCount() + pipeline.pendingApprovalCount() + pipeline.approvedCount() + pipeline.dispatchedCount() + pipeline.receivedCount()}">
+                            <div class="progress-bar" th:unless="${total == 0}">
+                                <div class="progress-fill progress-fill-success" th:style="${total > 0 ? 'width:' + (pipeline.receivedCount() * 100.0 / total) + '%' : 'width:0%'}"></div>
+                            </div>
+                            <div class="flex justify-between mt-2" th:unless="${total == 0}">
+                                <span class="text-sm text-muted" th:text="|${pipeline.receivedCount()} / ${total} completed|">0/0 completed</span>
+                                <span class="text-sm font-semibold" th:text="${total > 0 ? #numbers.formatDecimal(pipeline.receivedCount() * 100.0 / total, 0, 0) + '%' : '0%'}">0%</span>
+                            </div>
+                        </th:block>
+                    </th:block>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Recent Orders</span>
+                </div>
+                <div class="card-body" style="padding:0">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Order#</th>
+                                    <th>Vendor</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="order : ${dashboard.procurementPipeline().recentOrders()}">
+                                    <td class="font-medium" th:text="${order.orderNumber()}">PO-001</td>
+                                    <td th:text="${order.vendorName()}">Vendor</td>
+                                    <td><span class="badge" th:classappend="|badge-${#strings.toLowerCase(order.status())}|" th:text="${order.status()}">DRAFT</span></td>
+                                    <td class="text-muted" th:text="${order.orderDate()}">2025-01-01</td>
+                                    <td class="font-medium" th:text="|$ ${order.grandTotal()}|">$0.00</td>
+                                </tr>
+                                <tr th:unless="${!dashboard.procurementPipeline().recentOrders().isEmpty()}">
+                                    <td colspan="5"><div class="empty-state"><p>No orders yet</p></div></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Active Alerts</span>
+                <span class="badge badge-critical" th:text="${dashboard.activeAlerts().size()}">0</span>
+            </div>
+            <div class="card-body">
+                <th:block th:if="${!dashboard.activeAlerts().isEmpty()}">
+                    <div class="flex flex-col gap-3">
+                        <div class="alert-card" th:classappend="|alert-${#strings.toLowerCase(alert.severity())}|" th:each="alert : ${dashboard.activeAlerts()}">
+                            <div class="alert-body">
+                                <div class="alert-title" th:text="${alert.message()}">Alert message</div>
+                                <div class="alert-meta" th:text="|${alert.wardName()} - ${alert.drugName()}|">Ward - Drug</div>
+                                <div class="alert-meta" th:text="${alert.createdAt()}">2025-01-01</div>
+                            </div>
+                            <span class="badge" th:classappend="|badge-${#strings.toLowerCase(alert.severity())}|" th:text="${alert.severity()}">CRITICAL</span>
+                        </div>
+                    </div>
+                </th:block>
+                <div class="empty-state" th:if="${dashboard.activeAlerts().isEmpty()}">
+                    <p>No active alerts</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

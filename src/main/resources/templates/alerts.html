@@ -1,0 +1,65 @@
+<html th:replace="~{fragments/layout :: layout(title=~{::title}, content=~{::#main-content})}">
+<head>
+    <title>Alerts - MediChain</title>
+</head>
+<body>
+    <div id="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Stock Alerts</h1>
+        </div>
+
+        <div x-data="{ activeTab: 'all' }">
+            <div class="tabs">
+                <button class="tab" :class="{ 'active': activeTab === 'all' }" @click="activeTab = 'all'"
+                        hx-get="/api/v1/alerts/active" hx-target="#alert-list" hx-trigger="click" hx-swap="innerHTML">
+                    All
+                    <span class="tab-count" th:text="${alertCounts != null ? alertCounts.values().stream().reduce(0L, Long::sum) : 0}">0</span>
+                </button>
+                <button class="tab" :class="{ 'active': activeTab === 'critical' }" @click="activeTab = 'critical'"
+                        hx-get="/api/v1/alerts/active" hx-target="#alert-list" hx-trigger="click" hx-swap="innerHTML">
+                    CRITICAL
+                    <span class="tab-count" th:text="${alertCounts != null && alertCounts.get('CRITICAL') != null ? alertCounts.get('CRITICAL') : 0}">0</span>
+                </button>
+                <button class="tab" :class="{ 'active': activeTab === 'warning' }" @click="activeTab = 'warning'"
+                        hx-get="/api/v1/alerts/active" hx-target="#alert-list" hx-trigger="click" hx-swap="innerHTML">
+                    WARNING
+                    <span class="tab-count" th:text="${alertCounts != null && alertCounts.get('WARNING') != null ? alertCounts.get('WARNING') : 0}">0</span>
+                </button>
+                <button class="tab" :class="{ 'active': activeTab === 'watch' }" @click="activeTab = 'watch'"
+                        hx-get="/api/v1/alerts/active" hx-target="#alert-list" hx-trigger="click" hx-swap="innerHTML">
+                    WATCH
+                    <span class="tab-count" th:text="${alertCounts != null && alertCounts.get('WATCH') != null ? alertCounts.get('WATCH') : 0}">0</span>
+                </button>
+            </div>
+
+            <div id="alert-list" class="flex flex-col gap-3" hx-get="/api/v1/alerts/active" hx-trigger="every 15s" hx-swap="innerHTML">
+                <th:block th:each="alert : ${alerts}">
+                    <div class="alert-card" th:classappend="|alert-${#strings.toLowerCase(alert.severity())}|">
+                        <div class="alert-body">
+                            <div class="flex items-center justify-between">
+                                <div class="alert-title" th:text="${alert.message()}">Alert message</div>
+                                <span class="badge" th:classappend="|badge-${#strings.toLowerCase(alert.severity())}|" th:text="${alert.severity()}">CRITICAL</span>
+                            </div>
+                            <div class="alert-meta" th:text="|${alert.wardName()} - ${alert.drugName()}|">Ward - Drug</div>
+                            <div class="flex items-center justify-between mt-2">
+                                <span class="text-sm text-muted" th:text="${alert.createdAt()}">2025-01-01</span>
+                                <button class="btn btn-sm btn-outline" th:unless="${alert.acknowledged()}"
+                                        th:attr="hx-post=/api/v1/alerts/${alert.id()}/acknowledge"
+                                        hx-target="closest .alert-card"
+                                        hx-swap="outerHTML"
+                                        hx-on::after-request="MediChain.showToast('Alert acknowledged','success')">
+                                    Acknowledge
+                                </button>
+                                <span class="text-sm text-success" th:if="${alert.acknowledged()}">Acknowledged</span>
+                            </div>
+                        </div>
+                    </div>
+                </th:block>
+                <div class="empty-state" th:if="${alerts.isEmpty()}">
+                    <p>No active alerts</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

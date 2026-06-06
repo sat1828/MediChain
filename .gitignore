@@ -1,0 +1,44 @@
+# Java
+*.class
+*.jar
+*.war
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-compose.override.yml
+nginx/ssl/*.crt
+nginx/ssl/*.key
+
+# Environment
+.env
+*.env.local
+
+# Build output
+out/
+build/
+
+# Spring Boot
+application-local.yml
+application-local.properties

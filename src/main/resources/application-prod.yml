@@ -1,0 +1,25 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    schemas: medichain
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  thymeleaf:
+    cache: true
+
+logging:
+  level:
+    com.medichain: WARN
+
+server:
+  tomcat:
+    max-connections: 100
+    threads:
+      max: 25
+      min-spare: 5

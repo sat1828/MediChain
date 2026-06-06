@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title th:remove="all">Expiry Alert</title>
+  <style type="text/css">
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f6f9;
+      font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #2c3e50;
+    }
+    .email-wrapper {
+      max-width: 660px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    .email-header {
+      background: linear-gradient(135deg, #6c2e1e 0%, #c0392b 100%);
+      padding: 28px 24px;
+      text-align: center;
+    }
+    .email-header h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .email-header .badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 14px;
+      background-color: #ffffff;
+      color: #c0392b;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .email-body {
+      padding: 32px 24px;
+    }
+    .email-body p {
+      margin: 0 0 16px 0;
+    }
+    .email-body .summary {
+      background-color: #fef9f0;
+      border-left: 4px solid #e67e22;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    table.alert-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 13px;
+    }
+    table.alert-table thead th {
+      background-color: #6c2e1e;
+      color: #ffffff;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    table.alert-table tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    table.alert-table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
+    table.alert-table .urgency-high {
+      background-color: #fdf2f2;
+    }
+    table.alert-table .urgency-medium {
+      background-color: #fef9f0;
+    }
+    .cta-button {
+      display: inline-block;
+      margin: 16px 0 8px;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #6c2e1e 0%, #c0392b 100%);
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .cta-button:hover {
+      background: linear-gradient(135deg, #4a1f13 0%, #922b21 100%);
+    }
+    .redistribution-note {
+      background-color: #ebf5fb;
+      border-left: 4px solid #2980b9;
+      padding: 14px 18px;
+      margin: 20px 0 10px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .redistribution-note strong {
+      color: #1a5276;
+    }
+    .email-footer {
+      padding: 20px 24px;
+      background-color: #f8f9fa;
+      font-size: 12px;
+      color: #7f8c8d;
+      text-align: center;
+      border-top: 1px solid #e9ecef;
+    }
+    .email-footer p {
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <div class="email-header">
+      <h1 th:text="${subject} ?: 'MediChain — Drug Expiry Alert'">MediChain — Drug Expiry Alert</h1>
+      <span class="badge">NGO Redirection Needed</span>
+    </div>
+    <div class="email-body">
+      <p>Dear Pharmacy Team,</p>
+      <p>
+        The following drug batches are approaching their expiration date and require
+        review for potential redistribution to NGO partners before they expire:
+      </p>
+
+      <div class="summary">
+        <strong>Threshold:</strong> Alert triggered when days until expiry &lt; 30 days.
+        Consider NGO redistribution for batches with sufficient remaining units.
+      </div>
+
+      <table class="alert-table">
+        <thead>
+          <tr>
+            <th>Drug Name</th>
+            <th>Batch #</th>
+            <th>Ward</th>
+            <th>Expiry Date</th>
+            <th>Days Left</th>
+            <th>Units</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows populated by Thymeleaf -->
+          <tr th:each="item : ${items}" th:classappend="${item.daysLeft < 14 ? 'urgency-high' : (item.daysLeft < 21 ? 'urgency-medium' : '')}">
+            <td th:text="${item.drugName}">Amoxicillin</td>
+            <td th:text="${item.batchNumber}">B2024-0891</td>
+            <td th:text="${item.ward}">Ward B</td>
+            <td th:text="${item.expiryDate}">2026-07-01</td>
+            <td th:text="${item.daysLeft}">14</td>
+            <td th:text="${item.unitsRemaining}">1200</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="redistribution-note">
+        <strong>NGO Redistribution Program:</strong>
+        Eligible batches with &ge; 30 days until expiry and &ge; 500 units remaining
+        can be redirected to partner NGOs.
+        <a th:href="${reviewUrl} ?: 'https://medichain.local/redistribution'"
+           href="https://medichain.local/redistribution"
+           style="color: #2980b9; font-weight: 600;">
+           Review and approve NGO redistribution &rarr;
+        </a>
+      </div>
+
+      <p>
+        <a class="cta-button" th:href="${dashboardUrl} ?: 'https://medichain.local/dashboard'"
+           href="https://medichain.local/dashboard">
+           View MediChain Dashboard
+        </a>
+      </p>
+    </div>
+    <div class="email-footer">
+      <p><strong>MediChain — Hospital Pharmacy Inventory System</strong></p>
+      <p>This is an automated alert. Please do not reply to this email.</p>
+      <p th:if="${#dates != null}" th:text="'Sent: ' + ${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')}">Sent: 2026-06-05 15:00:00</p>
+    </div>
+  </div>
+</body>
+</html>

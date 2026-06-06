@@ -1,0 +1,54 @@
+# MediChain Alerting Rules
+# Thresholds are tuned for a hospital pharmacy inventory context
+
+groups:
+  - name: medichain_alerts
+    interval: 30s
+    rules:
+
+      # HIGH STOCKOUT RISK — triggered when days_until_stockout < 15 for any SKU
+      - alert: HighStockoutRisk
+        expr: |
+          days_until_stockout < 15
+        for: 2m
+        labels:
+          severity: warning
+          team: pharmacy
+        annotations:
+          summary: "Stockout risk for drug {{ $labels.drug_name }}"
+          description: >
+            Drug {{ $labels.drug_name }} (SKU: {{ $labels.sku }}) in ward
+            {{ $labels.ward }} has only {{ $value | humanize }} days of stock remaining.
+            Threshold: < 15 days.
+          runbook_url: "https://medichain.local/runbooks/stockout"
+
+      # CRITICAL EXPIRY — triggered when days_until_expiry < 30 for any batch
+      - alert: CriticalExpiry
+        expr: |
+          days_until_expiry < 30
+        for: 2m
+        labels:
+          severity: warning
+          team: pharmacy
+        annotations:
+          summary: "Batch expiring soon — {{ $labels.drug_name }}"
+          description: >
+            Batch {{ $labels.batch_number }} of {{ $labels.drug_name }}
+            in ward {{ $labels.ward }} expires in {{ $value | humanize }} days
+            ({{ $labels.units_remaining }} units remaining). Threshold: < 30 days.
+          runbook_url: "https://medichain.local/runbooks/expiry"
+
+      # APPLICATION DOWN — triggered when app is unreachable for 1 minute
+      - alert: AppDown
+        expr: |
+          up{job="medichain-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "MediChain application is DOWN"
+          description: >
+            The MediChain application at {{ $labels.instance }} has been unreachable
+            for more than 1 minute. Immediate investigation required.
+          runbook_url: "https://medichain.local/runbooks/app-down"

@@ -1,0 +1,117 @@
+<html th:replace="~{fragments/layout :: layout(title=~{::title}, content=~{::#main-content})}">
+<head>
+    <title>Procurement - MediChain</title>
+</head>
+<body>
+    <div id="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Procurement Orders</h1>
+            <button class="btn btn-primary" data-toggle="modal" data-target="create-order-modal">Create Order</button>
+        </div>
+
+        <div class="card">
+            <div class="card-body" style="padding:0">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order#</th>
+                                <th>Vendor</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Expected Delivery</th>
+                                <th>Total</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="order : ${orders}">
+                                <td class="font-medium" th:text="${order.orderNumber()}">PO-001</td>
+                                <td th:text="${order.vendorName()}">Vendor</td>
+                                <td><span class="badge" th:classappend="|badge-${#strings.toLowerCase(order.status())}|" th:text="${order.status()}">DRAFT</span></td>
+                                <td class="text-muted" th:text="${order.orderDate()}">2025-01-01</td>
+                                <td class="text-muted" th:text="${order.expectedDeliveryDate() != null ? order.expectedDeliveryDate() : 'N/A'}">2025-01-15</td>
+                                <td class="font-medium" th:text="|$${order.grandTotal() != null ? #numbers.formatDecimal(order.grandTotal(), 1, 2) : '0.00'}|">$0.00</td>
+                                <td>
+                                    <div class="flex gap-2">
+                                        <a class="btn btn-sm btn-outline" th:href="${order.pdfDownloadUrl()}" target="_blank">PDF</a>
+                                        <button class="btn btn-sm btn-primary" th:if="${order.status() == 'DRAFT'}"
+                                                th:attr="hx-post=/api/v1/procurement/orders/${order.id()}/approve"
+                                                hx-target="closest tr"
+                                                hx-swap="outerHTML"
+                                                hx-on::after-request="MediChain.showToast('Order submitted for approval','success')">
+                                            Submit
+                                        </button>
+                                        <button class="btn btn-sm btn-success" th:if="${order.status() == 'PENDING_APPROVAL'}"
+                                                th:attr="hx-post=/api/v1/procurement/orders/${order.id()}/approve"
+                                                hx-target="closest tr"
+                                                hx-swap="outerHTML"
+                                                hx-on::after-request="MediChain.showToast('Order approved','success')">
+                                            Approve
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:unless="${!orders.isEmpty()}">
+                                <td colspan="7"><div class="empty-state"><p>No procurement orders yet. Click "Create Order" to start.</p></div></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="create-order-modal" class="modal-overlay">
+            <div class="modal" style="max-width:800px">
+                <div class="modal-header">
+                    <span class="modal-title">Create Procurement Order</span>
+                    <button class="modal-close" data-dismiss="modal">&times;</button>
+                </div>
+                <form hx-post="/api/v1/procurement/orders/generate" hx-target="#create-order-modal" hx-swap="outerHTML" onsubmit="return MediChain.validateForm(this)">
+                    <div class="modal-body">
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label class="form-label" for="po-vendor">Vendor</label>
+                                <select class="form-select" id="po-vendor" name="vendorId" required>
+                                    <option value="">Select Vendor</option>
+                                    <option th:each="vendor : ${vendors}" th:value="${vendor.id}" th:text="${vendor.name}">Vendor</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="po-notes">Notes</label>
+                                <textarea class="form-textarea" id="po-notes" name="notes" rows="2"></textarea>
+                            </div>
+                        </div>
+                        <div class="card-title mb-3">Line Items</div>
+                        <div id="line-items">
+                            <div class="line-item grid-3 mb-2">
+                                <div class="form-group">
+                                    <label class="form-label">Drug SKU</label>
+                                    <input type="text" class="form-input" name="lineItems[0].drugSkuId" placeholder="SKU ID" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Quantity</label>
+                                    <input type="number" class="form-input" name="lineItems[0].requestedQuantity" min="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Unit Price</label>
+                                    <input type="number" step="0.01" class="form-input" name="lineItems[0].unitPrice" placeholder="0.00">
+                                </div>
+                                <div class="form-group" style="grid-column:span 3">
+                                    <label class="form-label">Justification</label>
+                                    <input type="text" class="form-input" name="lineItems[0].justification" placeholder="Justification">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline" data-add-line-item>+ Add Line Item</button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Generate Order</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

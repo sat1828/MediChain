@@ -1,0 +1,65 @@
+<html th:replace="~{fragments/layout :: layout(title=~{::title}, content=~{::#main-content})}">
+<head>
+    <title>Forecast - MediChain</title>
+</head>
+<body>
+    <div id="main-content">
+        <div class="page-header">
+            <h1 class="page-title">AI Inventory Forecast</h1>
+            <button class="btn btn-primary" onclick="MediChain.showToast('Select a ward and drug to generate forecast','info')">Generate Forecast</button>
+        </div>
+
+        <div class="filter-bar">
+            <select class="form-select" id="forecast-ward-filter" style="max-width:280px">
+                <option value="">All Wards</option>
+                <option th:each="ward : ${wards}" th:value="${ward.id}" th:text="${ward.name}">Ward</option>
+            </select>
+        </div>
+
+        <div class="ward-grid">
+            <th:block th:each="forecast : ${forecasts}">
+                <div class="forecast-card">
+                    <div class="flex items-center justify-between">
+                        <div class="forecast-drug" th:text="${forecast.drugSku.genericName}">Drug Name</div>
+                        <span class="badge badge-actionable" th:if="${forecast.actionable}">Actionable</span>
+                    </div>
+                    <div class="forecast-meta" th:text="|${forecast.ward.name} - ${forecast.drugSku.strength}|">Ward - Strength</div>
+                    <div class="grid-2">
+                        <div>
+                            <div class="text-sm text-muted">Predicted Stockout</div>
+                            <div class="font-semibold" th:text="${forecast.predictedStockoutDate != null ? forecast.predictedStockoutDate : 'N/A'}">2025-01-01</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-muted">Recommended Order Qty</div>
+                            <div class="font-semibold" th:text="${forecast.recommendedOrderQuantity != null ? forecast.recommendedOrderQuantity : 'N/A'}">100</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-muted">Confidence Score</span>
+                            <span class="text-sm font-semibold" th:text="${forecast.confidenceScore != null ? #numbers.formatDecimal(forecast.confidenceScore * 100, 0, 0) : 'N/A'}">70%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill"
+                                 th:classappend="${forecast.confidenceScore != null && forecast.confidenceScore >= 0.7 ? 'progress-fill-success' : (forecast.confidenceScore != null && forecast.confidenceScore >= 0.4 ? 'progress-fill-warning' : 'progress-fill-critical')}"
+                                 th:style="${forecast.confidenceScore != null ? 'width:' + (forecast.confidenceScore * 100) + '%' : 'width:0%'}"></div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end mt-2">
+                        <button class="btn btn-sm btn-outline"
+                                th:attr="hx-post=/api/v1/forecast/generate/${forecast.ward.id}/${forecast.drugSku.id}"
+                                hx-target="closest .forecast-card"
+                                hx-swap="outerHTML"
+                                hx-on::after-request="MediChain.showToast('Forecast generated','success')">
+                            Regenerate
+                        </button>
+                    </div>
+                </div>
+            </th:block>
+            <div class="empty-state" th:if="${forecasts == null || forecasts.isEmpty()}" style="grid-column:1/-1">
+                <p>No forecasts available. Select a ward and drug to generate one.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
